@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 export async function GET() {
   const { data: files, error } = await supabase
     .storage
-    .from('frame-photos')
+    .from('photos')
     .list('', { sortBy: { column: 'created_at', order: 'desc' } });
 
   if (error) {
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Upload to the exact same 'frame-photos' bucket as route.ts
     const { data, error } = await supabase
       .storage
       .from('photos') 

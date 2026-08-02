@@ -21,7 +21,7 @@ export default function Home() {
 
     const { error } = await supabase
       .storage
-      .from('frame-photos')
+      .from('photos')
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,
