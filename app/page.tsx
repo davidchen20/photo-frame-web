@@ -1,65 +1,73 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function Home() {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [status, setStatus] = useState<string>('');
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+
+    setUploading(true);
+    setStatus('Uploading image to private storage...');
+
+    // Sanitize filename with timestamp
+    const ext = file.name.split('.').pop();
+    const fileName = `photo_${Date.now()}.${ext}`;
+
+    const { error } = await supabase
+      .storage
+      .from('frame-photos')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    setUploading(false);
+
+    if (error) {
+      setStatus(`Error: ${error.message}`);
+    } else {
+      setStatus('Upload successful! The photo frame will display this on its next refresh cycle.');
+      setFile(null);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <h1 className="text-2xl font-bold text-center mb-1">Photo Frame Uploader</h1>
+        <p className="text-slate-400 text-sm text-center mb-6">
+          Upload 24-bit .BMP images to your cloud frame
+        </p>
+
+        <form onSubmit={handleUpload} className="space-y-4">
+          <input
+            type="file"
+            accept=".bmp"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
+          />
+
+          <button
+            type="submit"
+            disabled={!file || uploading}
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed font-semibold py-2 px-4 rounded-lg transition-colors"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            {uploading ? 'Uploading...' : 'Upload Photo'}
+          </button>
+        </form>
+
+        {status && (
+          <div className="mt-4 p-3 bg-slate-700/50 rounded-lg text-sm text-center text-slate-200">
+            {status}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
