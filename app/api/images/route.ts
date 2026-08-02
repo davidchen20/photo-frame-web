@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     // Upload to the exact same 'frame-photos' bucket as route.ts
     const { data, error } = await supabase
       .storage
-      .from('frame-photos') 
+      .from('photos') 
       .upload(file.name, buffer, {
         contentType: 'image/bmp',
         upsert: true, // Overwrite if file with same name exists
