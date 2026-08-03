@@ -1,49 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { uploadPhotoAction } from './actions';
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
-  const [password, setPassword] = useState<string>('');
   const [uploading, setUploading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
 
-  const UPLOAD_PASSWORD = process.env.NEXT_PUBLIC_UPLOAD_PASSWORD;
-
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!file) return;
-
-    // Make it so you need a password to upload
-    if (password !== UPLOAD_PASSWORD) {
-      setStatus('Error: Incorrect password.');
-      return;
-    }
-
     setUploading(true);
-    setStatus('Uploading image to private storage...');
+    setStatus('Verifying password and uploading...');
 
-    // Sanitize filename with timestamp
-    const ext = file.name.split('.').pop();
-    const fileName = `photo_${Date.now()}.${ext}`;
-
-    const { error } = await supabase
-      .storage
-      .from('photos')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+    const formData = new FormData(e.currentTarget);
+    const result = await uploadPhotoAction(formData);
 
     setUploading(false);
 
-    if (error) {
-      setStatus(`Error: ${error.message}`);
+    if (!result.success) {
+      setStatus(`Error: ${result.error}`);
     } else {
-      setStatus('Upload successful! The photo frame will display this on its next refresh cycle.');
-      setFile(null);
-      setPassword('');
+      setStatus('Upload successful!');
+      e.currentTarget.reset();
     }
   };
 
@@ -55,25 +33,26 @@ export default function Home() {
           Upload 24-bit .BMP images to your cloud frame
         </p>
 
-        <form onSubmit={handleUpload} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="file"
+            name="file"
             accept=".bmp"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            required
             className="w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
           />
 
           <input
             type="password"
+            name="password"
             placeholder="Enter password to upload"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            required
             className="w-full bg-slate-700 text-white placeholder-slate-400 text-sm px-4 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
           />
 
           <button
             type="submit"
-            disabled={!file || !password || uploading}
+            disabled={uploading}
             className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed font-semibold py-2 px-4 rounded-lg transition-colors"
           >
             {uploading ? 'Uploading...' : 'Upload Photo'}
