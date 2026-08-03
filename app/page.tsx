@@ -5,12 +5,21 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
+  const [password, setPassword] = useState<string>('');
   const [uploading, setUploading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
+
+  const UPLOAD_PASSWORD = process.env.NEXT_PUBLIC_UPLOAD_PASSWORD;
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
+
+    // Make it so you need a password to upload
+    if (password !== UPLOAD_PASSWORD) {
+      setStatus('Error: Incorrect password.');
+      return;
+    }
 
     setUploading(true);
     setStatus('Uploading image to private storage...');
@@ -34,6 +43,7 @@ export default function Home() {
     } else {
       setStatus('Upload successful! The photo frame will display this on its next refresh cycle.');
       setFile(null);
+      setPassword('');
     }
   };
 
@@ -53,9 +63,17 @@ export default function Home() {
             className="w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
           />
 
+          <input
+            type="password"
+            placeholder="Enter password to upload"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full bg-slate-700 text-white placeholder-slate-400 text-sm px-4 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500"
+          />
+
           <button
             type="submit"
-            disabled={!file || uploading}
+            disabled={!file || !password || uploading}
             className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed font-semibold py-2 px-4 rounded-lg transition-colors"
           >
             {uploading ? 'Uploading...' : 'Upload Photo'}
