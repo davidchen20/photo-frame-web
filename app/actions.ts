@@ -1,42 +1,37 @@
 'use server';
-import { createClient } from "@supabase/supabase-js";
+
+import { createClient } from '@/lib/supabase/server';
 
 export async function uploadPhotoAction(formData: FormData) {
-  const password = formData.get('password') as string;
-  const file = formData.get('file') as File;
+  try {
+    const password = formData.get('password') as string;
+    const file = formData.get('file') as File;
 
-  // 1. Verify password on the server
-  if (!password || password !== process.env.UPLOAD_PASSWORD) {
-    return { success: false, error: 'Incorrect password.' };
+    if (!process.env.UPLOAD_PASSWORD) {
+      return { success: false, error: 'Server configuration error: UPLOAD_PASSWORD missing.' };
+    }
+
+    if (password !== process.env.UPLOAD_PASSWORD) {
+      return { success: false, error: 'Incorrect password.' };
+    }
+
+    if (!file || file.size === 0) {
+      return { success: false, error: 'No file provided or file is empty.' };
+    }
+
+    const supabase = await createClient();
+    const filePath = `${Date.now()}-${file.name}`;
+
+    const { error } = await supabase.storage
+      .from('photos')
+      .upload(filePath, file);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'An unexpected server error occurred.' };
   }
-
-  if (!file || file.size === 0) {
-    return { success: false, error: 'Please select a valid file.' };
-  }
-
-  // 2. Initialize Supabase Admin Client using server-only credentials
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // 3. Prepare file for server-side upload
-  const ext = file.name.split('.').pop();
-  const fileName = `photo_${Date.now()}.${ext}`;
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  // 4. Upload to Supabase
-  const { error } = await supabaseAdmin.storage
-    .from('photos')
-    .upload(fileName, buffer, {
-      contentType: file.type || 'image/bmp',
-      upsert: false,
-    });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
 }

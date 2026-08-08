@@ -9,10 +9,14 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Save reference to the form before the async operation
+    const form = e.currentTarget; 
+    
     setUploading(true);
     setStatus('Verifying password and uploading...');
 
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(form);
     const result = await uploadPhotoAction(formData);
 
     setUploading(false);
@@ -21,7 +25,7 @@ export default function Home() {
       setStatus(`Error: ${result.error}`);
     } else {
       setStatus('Upload successful!');
-      e.currentTarget.reset();
+      form.reset(); // Use the saved reference here
     }
   };
 
