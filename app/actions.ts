@@ -2,11 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server';
 
-export async function uploadPhotoAction(formData: FormData) {
+export async function getSignedUploadUrlAction(password: string, filename: string) {
   try {
-    const password = formData.get('password') as string;
-    const file = formData.get('file') as File;
-
+    // 1. Verify password server-side
     if (!process.env.UPLOAD_PASSWORD) {
       return { success: false, error: 'Server configuration error: UPLOAD_PASSWORD missing.' };
     }
@@ -15,23 +13,26 @@ export async function uploadPhotoAction(formData: FormData) {
       return { success: false, error: 'Incorrect password.' };
     }
 
-    if (!file || file.size === 0) {
-      return { success: false, error: 'No file provided or file is empty.' };
-    }
-
+    // 2. Initialize Supabase client
     const supabase = await createClient();
-    const filePath = `${Date.now()}-${file.name}`;
+    const filePath = `uploads/${Date.now()}-${filename}`;
 
-    const { error } = await supabase.storage
+    // 3. Create signed upload URL
+    const { data, error } = await supabase.storage
       .from('photos')
-      .upload(filePath, file);
+      .createSignedUploadUrl(filePath);
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (error || !data) {
+      return { success: false, error: error?.message || 'Failed to generate upload URL.' };
     }
 
-    return { success: true };
+    return {
+      success: true,
+      signedUrl: data.signedUrl,
+      token: data.token,
+      path: data.path,
+    };
   } catch (err: any) {
-    return { success: false, error: err?.message || 'An unexpected server error occurred.' };
+    return { success: false, error: err?.message || 'An unexpected error occurred.' };
   }
 }

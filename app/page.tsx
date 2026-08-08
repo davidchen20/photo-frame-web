@@ -1,31 +1,54 @@
 'use client';
 
 import { useState } from 'react';
-import { uploadPhotoAction } from './actions';
+import { createBrowserClient } from '@supabase/ssr';
+import { getSignedUploadUrlAction } from './actions';
 
 export default function Home() {
   const [uploading, setUploading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
 
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const form = e.currentTarget;
     
-    // Save reference to the form before the async operation
-    const form = e.currentTarget; 
-    
-    setUploading(true);
-    setStatus('Verifying password and uploading...');
-
     const formData = new FormData(form);
-    const result = await uploadPhotoAction(formData);
+    const password = formData.get('password') as string;
+    const file = formData.get('file') as File;
+
+    if (!file) return;
+
+    setUploading(true);
+    setStatus('Verifying password...');
+
+    // 1. Ask server for permission & signed URL
+    const urlResult = await getSignedUploadUrlAction(password, file.name);
+
+    if (!urlResult.success || !urlResult.path || !urlResult.token) {
+      setUploading(false);
+      setStatus(`Error: ${urlResult.error}`);
+      return;
+    }
+
+    setStatus('Uploading large file directly to Supabase...');
+
+    // 2. Upload directly from browser to Supabase
+    const { error: uploadError } = await supabase.storage
+      .from('photos')
+      .uploadToSignedUrl(urlResult.path, urlResult.token, file);
 
     setUploading(false);
 
-    if (!result.success) {
-      setStatus(`Error: ${result.error}`);
+    if (uploadError) {
+      setStatus(`Upload Error: ${uploadError.message}`);
     } else {
       setStatus('Upload successful!');
-      form.reset(); // Use the saved reference here
+      form.reset();
     }
   };
 
